@@ -20,6 +20,7 @@ These must be extracted from the game files. See the module help in
 """
 
 import argparse
+import os.path
 import re
 import sys
 
@@ -30,57 +31,56 @@ from dysonsphere import ERecipeType, EItemType
 STARTING_RECIPES = [1, 2, 3, 4, 5, 6, 50]
 STARTING_TECHS = [1]
 MADE_FROM = {
-    ERecipeType.NONE:'-',
-    ERecipeType.SMELT:'冶炼设备',
-    ERecipeType.CHEMICAL:'化工设备',
-    ERecipeType.REFINE:'精炼设备',
-    ERecipeType.ASSEMBLE:'制造台',
-    ERecipeType.PARTICLE:'粒子对撞机',
-    ERecipeType.EXCHANGE:'能量交换器',
-    ERecipeType.PHOTON_STORE:'射线接收站',
-    ERecipeType.FRACTIONATE:'分馏设备',
-    ERecipeType.RESEARCH:'科研设备',
-    None:'未知'}
+    ERecipeType.NONE: '-',
+    ERecipeType.SMELT: '冶炼设备',
+    ERecipeType.CHEMICAL: '化工设备',
+    ERecipeType.REFINE: '精炼设备',
+    ERecipeType.ASSEMBLE: '制造台',
+    ERecipeType.PARTICLE: '粒子对撞机',
+    ERecipeType.EXCHANGE: '能量交换器',
+    ERecipeType.PHOTON_STORE: '射线接收站',
+    ERecipeType.FRACTIONATE: '分馏设备',
+    ERecipeType.RESEARCH: '科研设备',
+    None: '未知'}
 # The second part of the tuple is crafting power: The power of the building
 # (Mk.I in the case of Assembler) divided by the crafting speed.
 BUILDINGS = {
-    ERecipeType.SMELT:([2302], 360000),
-    ERecipeType.CHEMICAL:([2309], 720000),
-    ERecipeType.REFINE:([2308], 960000),
-    ERecipeType.ASSEMBLE:([2303, 2304, 2305], 360000),
-    ERecipeType.PARTICLE:([2310], 12000000),
-    ERecipeType.EXCHANGE:([2209], 45000000),
-    ERecipeType.PHOTON_STORE:([2208], 0),
-    ERecipeType.FRACTIONATE:([2314], 720000),
-    ERecipeType.RESEARCH:([2901], 480000)}
+    ERecipeType.SMELT: ([2302], 360000),
+    ERecipeType.CHEMICAL: ([2309], 720000),
+    ERecipeType.REFINE: ([2308], 960000),
+    ERecipeType.ASSEMBLE: ([2303, 2304, 2305], 360000),
+    ERecipeType.PARTICLE: ([2310], 12000000),
+    ERecipeType.EXCHANGE: ([2209], 45000000),
+    ERecipeType.PHOTON_STORE: ([2208], 0),
+    ERecipeType.FRACTIONATE: ([2314], 720000),
+    ERecipeType.RESEARCH: ([2901], 480000)}
 
 # This is the only one set of strings that is not localized, because we ended
 # up pluralizing all these categories.
 CATEGORIES = {
-    EItemType.UNKNOWN:'Unknown Category',
-    EItemType.RESOURCE:'Natural Resources',
-    EItemType.MATERIAL:'Materials',
-    EItemType.COMPONENT:'Components',
-    EItemType.PRODUCT:'End Products',
-    EItemType.LOGISTICS:'Logistics',
-    EItemType.PRODUCTION:'Production Facilities',
-    EItemType.DECORATION:'Decorations',
-    EItemType.TURRET:'Turrets',
-    EItemType.DEFENSE:'Defense',
-    EItemType.DARK_FOG:'Dark Fog',
-    EItemType.MATRIX:'Science Matrices'}
+    EItemType.UNKNOWN: 'Unknown Category',
+    EItemType.RESOURCE: 'Natural Resources',
+    EItemType.MATERIAL: 'Materials',
+    EItemType.COMPONENT: 'Components',
+    EItemType.PRODUCT: 'End Products',
+    EItemType.LOGISTICS: 'Logistics',
+    EItemType.PRODUCTION: 'Production Facilities',
+    EItemType.DECORATION: 'Decorations',
+    EItemType.TURRET: 'Turrets',
+    EItemType.DEFENSE: 'Defense',
+    EItemType.DARK_FOG: 'Dark Fog',
+    EItemType.MATRIX: 'Science Matrices'}
 
 BUILDING_CATEGORIES = [
-    '电力类',    # Power (1)
-    '采集类',    # Gathering (2)
-    '运输类',    # Logistics (3)
-    '仓储类',    # Storage (4)
-    '生产类',    # Production (5)
-    '物流类',    # Transportation (6)
-    '研究类',    # Research (7)
+    '电力类',  # Power (1)
+    '采集类',  # Gathering (2)
+    '运输类',  # Logistics (3)
+    '仓储类',  # Storage (4)
+    '生产类',  # Production (5)
+    '物流类',  # Transportation (6)
+    '研究类',  # Research (7)
     '戴森球类',  # Dyson Sphere Program (8)
-    '环改类']    # Environment Modification (9)
-
+    '环改类']  # Environment Modification (9)
 
 # Patches we make to be explicit about what techs unlock items.
 # This lists the recipe id of recipes to be "fixed": Their first output item
@@ -96,19 +96,19 @@ UNLOCK_HACKS = [
 
 # Tweaks to the sort-key function, to get the recipe list to sort in a better
 # order.
-KEY_TWEAKS = {75: 103, #Universe Matrix -> After Gravity Matrix
-    89: 85, #Conveyor Belt MK.II -> After MK.I
-    92: 86, #Conveyor Belt MK.III
-    85: 87, #Sorter MK.I
-    88: 88, #Sorter MK.II
-    90: 89, #Sorter Mk.III
-    86: 90, #Storage MK. I
-    91: 91, #Storage Mk. II
-    87: 92} #Splitter
+KEY_TWEAKS = {75: 103,  # Universe Matrix -> After Gravity Matrix
+              89: 85,  # Conveyor Belt MK.II -> After MK.I
+              92: 86,  # Conveyor Belt MK.III
+              85: 87,  # Sorter MK.I
+              88: 88,  # Sorter MK.II
+              90: 89,  # Sorter Mk.III
+              86: 90,  # Storage MK. I
+              91: 91,  # Storage Mk. II
+              87: 92}  # Splitter
 COLOR_RE = re.compile('<color="([^"]*)">([^<]*)</color>')
 TRANSLATE_RE = re.compile(r'(.*)\t.?\t[0-9]\t(.*?)\n?')
 
-SPECIAL_MATERIALS_COMMENT="""
+SPECIAL_MATERIALS_COMMENT = """
 -- Raw materials that are not always available, and enable secondary or
 -- "special" crafting recipes. In some cases, this just means that harvesting
 -- the material directly enables skipping a production chain.
@@ -125,6 +125,7 @@ SPECIAL_MATERIALS = [
     1012,  # Kimberlite Ore
     1003]  # Silicon Ore
 
+
 def translate_fields(translations, proto_set, fields):
     """In-place replace text with translations for one proto_set."""
     for item in proto_set.data_array:
@@ -132,7 +133,6 @@ def translate_fields(translations, proto_set, fields):
             val = getattr(item, field)
             if val:
                 setattr(item, field, translations.get(val, '**' + val + '**'))
-
 
 
 def translate_data(data):
@@ -152,6 +152,7 @@ def translate_data(data):
     for i, text in enumerate(BUILDING_CATEGORIES):
         BUILDING_CATEGORIES[i] = translations.get(text, text).rstrip(' (0123456789)')
 
+
 def dump_all(data):
     """Print all the game data in raw-ish form.
 
@@ -161,6 +162,7 @@ def dump_all(data):
         print(f'{set_name}:')
         for item in getattr(data, set_name).data_array:
             print(f'    {item}')
+
 
 def dump_sorted_names(entry_list):
     """Print just the names, sorted.
@@ -172,9 +174,11 @@ def dump_sorted_names(entry_list):
     for name in names:
         print(name)
 
+
 def wiki_title(name):
     """Like title(), except it never lowercases a letter."""
-    return ''.join(min(x,y) for x,y in zip(name, name.title()))
+    return ''.join(min(x, y) for x, y in zip(name, name.title()))
+
 
 def color_sub(desc):
     """Replace all <color="#B9DFFFC4">(rare)</color> tags with equivalent HTML.
@@ -183,8 +187,9 @@ def color_sub(desc):
     paragraph breaks.
     """
     return (COLOR_RE
-        .sub('<span style="color:\\1">\\2</span>', desc)
-        .replace('\n', '<br>'))
+            .sub('<span style="color:\\1">\\2</span>', desc)
+            .replace('\n', '<br>'))
+
 
 def format_item(item_entry):
     """Formats an item as a Lua table."""
@@ -193,10 +198,10 @@ def format_item(item_entry):
         # Deuterium: We discover this on our own, it creates duplicates
         item.produce_from = None
     fields = {
-        'name':repr(wiki_title(item.name)),
-        'type':repr(item.type.name),
-        'grid_index':item.grid_index,
-        'stack_size':item.stack_size,
+        'name': repr(wiki_title(item.name)),
+        'type': repr(item.type.name),
+        'grid_index': item.grid_index,
+        'stack_size': item.stack_size,
     }
     if item.sub_id:
         fields['sub_id'] = item.sub_id
@@ -225,6 +230,7 @@ def format_item(item_entry):
             ''.join(f'        {k}={v},\n' for k, v in fields.items()) +
             f'        --image={item.icon_path.rsplit("/", 1)[1]!r}\n    }},\n')
 
+
 def format_recipe(recipe_entry):
     """Formats a recipe as a Lua table."""
     rec, disabled = recipe_entry
@@ -243,18 +249,18 @@ def format_recipe(recipe_entry):
         time_spend = repr(str(time_spend).lstrip('0'))
 
     outputs = ', '.join(str(x) for tup in zip(rec.results, rec.result_counts)
-            for x in tup)
+                        for x in tup)
     inputs = ', '.join(str(x) for tup in zip(rec.items, rec.item_counts)
-            for x in tup)
+                       for x in tup)
     fields = {
-        'id':rec.id,
-        'name':repr(wiki_title(rec.name)),
-        'type':repr(rec.type.name),
-        'outputs':'{' + outputs + '}',
-        'inputs':'{' + inputs + '}',
-        'grid_index':rec.grid_index,
-        'handcraft':'true' if rec.handcraft else 'false',
-        'seconds':time_spend,
+        'id': rec.id,
+        'name': repr(wiki_title(rec.name)),
+        'type': repr(rec.type.name),
+        'outputs': '{' + outputs + '}',
+        'inputs': '{' + inputs + '}',
+        'grid_index': rec.grid_index,
+        'handcraft': 'true' if rec.handcraft else 'false',
+        'seconds': time_spend,
     }
     if rec.explicit:
         fields['explicit'] = 'true'
@@ -267,21 +273,22 @@ def format_recipe(recipe_entry):
         footer = f'        --image={rec.icon_path.rsplit("/", 1)[1]!r}\n    }},'
     return '{\n' + ''.join(f'        {k}={v},\n' for k, v in fields.items()) + footer
 
+
 def format_tech(tech):
     """Formats a tech as a Lua table."""
     add_items = ', '.join(str(x) for tup in zip(tech.add_items, tech.add_item_counts)
-            for x in tup)
+                          for x in tup)
     research_items = ', '.join(str(x) for tup in zip(tech.items, tech.item_points)
-            for x in tup)
+                               for x in tup)
     recipes = ', '.join(str(x) for x in tech.unlock_recipes)
     pre_techs = ', '.join(str(x) for x in tech.pre_techs)
     pre_techs_implicit = ', '.join(str(x) for x in tech.pre_techs_implicit)
     pre_item = ', '.join(str(x) for x in tech.pre_item)
     fields = {
-        'id':tech.id,
-        'name':repr(wiki_title(tech.name)),
-        'hash_needed':tech.hash_needed,
-        'inputs':f'{{{research_items}}}',
+        'id': tech.id,
+        'name': repr(wiki_title(tech.name)),
+        'hash_needed': tech.hash_needed,
+        'inputs': f'{{{research_items}}}',
     }
     if tech.level_coef1:
         fields['level_coef1'] = tech.level_coef1
@@ -312,6 +319,7 @@ def format_tech(tech):
         fields['disabled'] = 'true'
     return '{\n' + ''.join(f'        {k}={v},\n' for k, v in fields.items()) + '    },'
 
+
 def format_facility(facility, items_map):
     """Formats an ERecipeType enum as a Lua table."""
     building_list, power = BUILDINGS.get(facility, ([], 0))
@@ -330,10 +338,12 @@ def set_valid(items_map, recipe_entry):
     for iid in recipe_entry[0].results:
         items_map[iid][1] = False
 
+
 def recipe_key(recipe):
     """Calculate a sort key for recipes"""
     key = recipe.id
     return KEY_TWEAKS.get(key, key)
+
 
 def create_augmented_maps(data):
     """Create augmented maps to determine whether items/recipes are disabled or not.
@@ -345,7 +355,7 @@ def create_augmented_maps(data):
     grid layout of all the items).
     """
     items = data.ItemProtoSet.data_array
-    items.sort(key=lambda x:x.id)
+    items.sort(key=lambda x: x.id)
     items_map = {}
     # The unlock_key field lets us know for sure that an item is not disabled,
     # and if a recipe is unlocked from a non-disabled tech, or if it is
@@ -357,7 +367,7 @@ def create_augmented_maps(data):
     recipes = data.RecipeProtoSet.data_array
     # The first part of the key determines if this is a building recipe, based
     # on its grid index.
-    recipes.sort(key=lambda x:(
+    recipes.sort(key=lambda x: (
         x.grid_index // 1000, x.type.name, recipe_key(x)))
     recipes_map = {}
     for rec in recipes:
@@ -368,13 +378,14 @@ def create_augmented_maps(data):
             set_valid(items_map, entry)
 
     techs = data.TechProtoSet.data_array
-    techs.sort(key=lambda x:x.id)
+    techs.sort(key=lambda x: x.id)
     for tech in techs:
         if not tech.published:
             continue
         for rid in tech.unlock_recipes:
             set_valid(items_map, recipes_map[rid])
     return items_map, recipes_map
+
 
 def print_wiki(data):
     """Prints wiki-text dump.
@@ -571,6 +582,7 @@ building_categories = {{
 {building_categories_str}}},
 }}""")
 
+
 def fuzzy_lookup_item(name_or_id, lst):
     """Lookup an item by either name or id.
 
@@ -603,10 +615,20 @@ def fuzzy_lookup_item(name_or_id, lst):
         raise RuntimeError(
             f'Multiple matches for {name_or_id!r}: {[x.name for x in matches]}') from None
 
+
+def paths(install_dir):
+    return None
+
+
 # pylint: disable=too-many-branches
 def main():
     """Main function, keeps a separate scope"""
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        '--install_dir',
+        help='Optionally, specify the install directory of DSP rather than moving files around.'
+    )
     parser.add_argument('--find_item',
                         help='Lookup a specific item, by name or id')
     parser.add_argument('--find_recipe',
@@ -625,6 +647,15 @@ def main():
                         help='Print wiki text for Module:Recipe/Data')
     args = parser.parse_args()
 
+    if args.install_dir is None:
+        item_proto_set = os.path.abspath('./ItemProtoSet.dat')
+        recipe_proto_set = os.path.abspath('./RecipeProtoSet.dat')
+        tech_proto_set = os.path.abspath('./TechProtoSet.dat')
+        base = os.path.abspath('./base.txt')
+        prototype = os.path.abspath('./prototype.txt')
+    else:
+        item_proto_set, recipe_proto_set, tech_proto_set, base, prototype = paths(args.install_dir)
+
     print('Reading data... ', end='', flush=True, file=sys.stderr)
     data = dysonsphere.load_all()
     translate_data(data)
@@ -634,13 +665,13 @@ def main():
         item = None
         if args.find_item:
             item = fuzzy_lookup_item(
-                    args.find_item, data.ItemProtoSet.data_array)
+                args.find_item, data.ItemProtoSet.data_array)
         if args.find_recipe:
             item = fuzzy_lookup_item(
-                    args.find_recipe, data.RecipeProtoSet.data_array)
+                args.find_recipe, data.RecipeProtoSet.data_array)
         if args.find_tech:
             item = fuzzy_lookup_item(
-                    args.find_tech, data.TechProtoSet.data_array)
+                args.find_tech, data.TechProtoSet.data_array)
         if item:
             print(repr(item))
         else:
@@ -659,6 +690,7 @@ def main():
                 print('Nothing to do!', file=sys.stderr)
     except RuntimeError as ex:
         print(ex, file=sys.stderr)
+
 
 if __name__ == '__main__':
     main()
